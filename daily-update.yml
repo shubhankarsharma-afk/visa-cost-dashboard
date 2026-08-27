@@ -1,0 +1,58 @@
+# ============================================================================
+#  Backup daily scheduler via GitHub Actions.
+#
+#  The app already runs an in-process node-cron job at 09:00 IST. This workflow
+#  is an INDEPENDENT backup so the update still happens even if the web process
+#  was restarting at 09:00. Two modes are provided — enable ONE:
+#
+#   MODE A (default here): ping your deployed instance's manual-refresh endpoint.
+#          Simple; works with the SQLite deployment. Requires the app to be
+#          reachable and (recommended) protected by a shared secret you add.
+#
+#   MODE B: run the standalone job in CI against a REMOTE database
+#          (e.g. Postgres/Supabase) by setting DB/-provider secrets. Use this
+#          if you migrate off single-host SQLite. See the commented block.
+#
+#  Cron note: GitHub Actions cron is UTC. 09:00 IST = 03:30 UTC.
+# ============================================================================
+name: daily-currency-update
+
+on:
+  schedule:
+    - cron: '30 3 * * *' # 03:30 UTC == 09:00 IST
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+jobs:
+  # ---- MODE A: trigger the deployed instance ------------------------------
+  ping-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger scheduled update on the live app
+        env:
+          APP_URL: ${{ secrets.APP_URL }}         # e.g. https://your-app.example.com
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "Set the APP_URL repository secret to your deployed dashboard URL."; exit 1
+          fi
+          echo "Calling $APP_URL/api/refresh"
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST "$APP_URL/api/refresh")
+          echo "HTTP $code"; cat /tmp/resp.json || true
+          # 200 = ok, 429 = throttled (already updated recently) — both acceptable.
+          [ "$code" = "200" ] || [ "$code" = "429" ]
+
+  # ---- MODE B: run the job directly in CI (uncomment to use) --------------
+  # run-job-in-ci:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: '20' }
+  #     - run: npm install --omit=dev
+  #     - name: Run scheduled update against remote DB
+  #       env:
+  #         PROVIDER: ${{ secrets.PROVIDER }}
+  #         XE_ACCOUNT_ID: ${{ secrets.XE_ACCOUNT_ID }}
+  #         XE_API_KEY: ${{ secrets.XE_API_KEY }}
+  #         EXCHANGERATE_API_KEY: ${{ secrets.EXCHANGERATE_API_KEY }}
+  #         # DB_PATH or a Postgres URL, depending on your DB layer
+  #       run: npm run update

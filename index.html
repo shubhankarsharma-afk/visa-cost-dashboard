@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Global visa cost monitoring dashboard — visa prices in INR, auto-updated with daily exchange rates" />
+  <title>Global Visa Cost Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="titles">
+        <h1>Global Visa Cost Dashboard</h1>
+        <p class="subtitle">Visa cost in INR · Auto-updated with daily exchange rates · Update time: 09:00 AM IST (Asia/Kolkata)</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="themeToggle" class="btn ghost" type="button" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+        <button id="configureBtn" class="btn" type="button">⚙ Configure Visa Prices</button>
+        <button id="refreshBtn" class="btn primary" type="button">↻ Refresh Exchange Rates</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ===== System status strip ===== -->
+    <section class="statusbar" id="statusbar" aria-live="polite">
+      <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusLabel">Loading…</span></div>
+      <div class="status-metrics" id="statusMetrics"></div>
+    </section>
+
+    <div class="banner warn" id="staleBanner" hidden>
+      <strong>⚠ Exchange-rate update issue.</strong>
+      <span id="staleBannerText"></span>
+    </div>
+
+    <!-- First-run prompt if no visa prices are configured -->
+    <div class="banner info" id="setupBanner" hidden>
+      <strong>Get started:</strong>
+      <span>No visa prices are configured yet. Enter your visa prices once — the dashboard keeps the INR cost updated automatically every day.</span>
+      <button class="btn primary sm" id="setupBannerBtn" type="button">Configure Visa Prices</button>
+    </div>
+
+    <!-- ===== Visa cost summary cards ===== -->
+    <section aria-labelledby="cardsHeading">
+      <h2 id="cardsHeading" class="section-heading">Visa Cost Summary</h2>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <!-- ===== Controls ===== -->
+    <section class="controls" aria-label="Search and filters">
+      <input id="search" class="search" type="search" placeholder="Search country, currency, or ISO code (e.g. UAE, AED, Dirham)" autocomplete="off" />
+      <div class="control-group">
+        <label for="filter">Filter</label>
+        <select id="filter">
+          <option value="all">All countries</option>
+          <option value="configured">Price configured</option>
+          <option value="notconfigured">Not configured</option>
+          <option value="gainers">Cost ↑ (dearer)</option>
+          <option value="losers">Cost ↓ (cheaper)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="sort">Sort</label>
+        <select id="sort">
+          <option value="country">Country name</option>
+          <option value="cost_desc">Highest visa cost (INR)</option>
+          <option value="cost_asc">Lowest visa cost (INR)</option>
+          <option value="pct_desc">Largest cost increase</option>
+          <option value="pct_asc">Largest cost decrease</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- ===== Visa cost table (doubles as Visa Price Management) ===== -->
+    <section aria-labelledby="tableHeading">
+      <h2 id="tableHeading" class="section-heading">Visa Cost Table &amp; Price Management</h2>
+      <div class="table-wrap">
+        <table class="rate-table" id="visaTable">
+          <thead>
+            <tr>
+              <th>Country</th>
+              <th>Currency</th>
+              <th class="num">Visa Price</th>
+              <th class="num">Exchange Rate</th>
+              <th class="num cost-col">INR Visa Cost</th>
+              <th class="num">Daily Change</th>
+              <th>Price Last Changed</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="visaTableBody"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="tableEmpty" hidden>No countries match your search/filter.</p>
+    </section>
+
+    <!-- ===== Historical analysis ===== -->
+    <section aria-labelledby="trendHeading" class="trend">
+      <h2 id="trendHeading" class="section-heading">Historical Analysis</h2>
+      <div class="trend-controls">
+        <div class="control-group">
+          <label for="trendCurrency">Country</label>
+          <select id="trendCurrency"></select>
+        </div>
+        <div class="control-group">
+          <label for="trendMode">Show</label>
+          <select id="trendMode">
+            <option value="visa">INR Visa Cost</option>
+            <option value="rate">Exchange Rate (INR per unit)</option>
+          </select>
+        </div>
+        <div class="range-tabs" id="rangeTabs" role="tablist">
+          <button class="range-tab" data-days="7" role="tab">7D</button>
+          <button class="range-tab active" data-days="30" role="tab" aria-selected="true">30D</button>
+          <button class="range-tab" data-days="90" role="tab">90D</button>
+          <button class="range-tab" data-days="365" role="tab">1Y</button>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-canvas-wrap"><canvas id="trendChart" aria-label="Historical trend chart"></canvas></div>
+        <p class="chart-note" id="chartNote"></p>
+      </div>
+      <h3 class="subheading">Visa Price History</h3>
+      <div class="table-wrap">
+        <table class="rate-table" id="priceHistoryTable">
+          <thead>
+            <tr>
+              <th>Effective From</th>
+              <th>Effective Until</th>
+              <th class="num">Visa Price</th>
+              <th class="num">INR at Change</th>
+              <th>Changed By</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="priceHistoryBody"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="priceHistoryEmpty" hidden>No price history yet for this country.</p>
+    </section>
+
+    <!-- ===== System status / data source ===== -->
+    <section aria-labelledby="infoHeading" class="info">
+      <h2 id="infoHeading" class="section-heading">System Status &amp; Data Source</h2>
+      <div class="info-grid" id="infoGrid"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Visa prices are user-maintained (foreign currency) and persist until you change them. The INR cost is derived from the latest successful 09:00 IST exchange rate — it is not your browser clock, and no values are hard-coded.</span>
+  </footer>
+
+  <!-- ===== Edit single price modal ===== -->
+  <div class="modal-overlay" id="editModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <h3 id="editModalTitle">Edit Visa Price</h3>
+      <p class="modal-sub" id="editModalSub"></p>
+      <label class="field-label" for="editPriceInput">New Visa Price (<span id="editModalCode"></span>)</label>
+      <input id="editPriceInput" class="field-input" type="text" inputmode="decimal" placeholder="e.g. 100" />
+      <p class="field-hint" id="editModalHint"></p>
+      <p class="field-error" id="editModalError" hidden></p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="editCancelBtn" type="button">Cancel</button>
+        <button class="btn primary" id="editSaveBtn" type="button">Save Price</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Configure all prices modal ===== -->
+  <div class="modal-overlay" id="configModal" hidden>
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="configModalTitle">
+      <h3 id="configModalTitle">Configure Visa Prices</h3>
+      <p class="modal-sub">Enter the visa price (in each country's local currency) once. Leave blank to skip. Existing prices are pre-filled.</p>
+      <div class="config-grid" id="configGrid"></div>
+      <p class="field-error" id="configError" hidden></p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="configCancelBtn" type="button">Cancel</button>
+        <button class="btn primary" id="configSaveBtn" type="button">Save All Prices</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/chart.umd.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

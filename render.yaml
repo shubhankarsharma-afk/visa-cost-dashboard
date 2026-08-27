@@ -1,0 +1,28 @@
+# Render Blueprint — deploys the dashboard with zero manual configuration.
+# In Render: New + → Blueprint → pick this repo → Apply. Everything below is
+# applied automatically; you don't set build/start/env by hand.
+services:
+  - type: web
+    name: currency-inr-dashboard
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run migrate && npm run seed
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROVIDER
+        value: erapi          # keyless, real live rates. Change to "xe" after adding XE keys.
+      - key: FALLBACK_PROVIDER
+        value: erapi
+      - key: SCHEDULE_TIMEZONE
+        value: Asia/Kolkata
+      - key: SCHEDULE_CRON
+        value: 0 9 * * *
+      # To use XE later, add these in the Render dashboard (kept out of the repo):
+      # - key: XE_ACCOUNT_ID
+      #   sync: false
+      # - key: XE_API_KEY
+      #   sync: false

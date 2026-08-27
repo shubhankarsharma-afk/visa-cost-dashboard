@@ -1,0 +1,38 @@
+{
+  "name": "currency-inr-dashboard",
+  "version": "1.0.0",
+  "description": "Production-ready automated Currency-to-INR monitoring dashboard with daily 09:00 IST scheduled updates, historical storage, and a swappable exchange-rate provider layer.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/db/migrate.js",
+    "seed": "node src/db/seed.js",
+    "update": "node scripts/run-update.js",
+    "update:manual": "node scripts/run-update.js --type=manual",
+    "test": "node --test tests/*.test.js",
+    "test:offline": "node --test tests/*.test.js",
+    "demo": "node scripts/seed-sample-data.js"
+  },
+  "keywords": [
+    "currency",
+    "exchange-rate",
+    "inr",
+    "dashboard",
+    "monitoring"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "chart.js": "^4.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "node-cron": "^3.0.3"
+  }
+}
