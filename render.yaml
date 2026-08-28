@@ -11,6 +11,8 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.0        # pin to LTS so better-sqlite3 uses a prebuilt binary (Node 24+ has none)
       - key: NODE_ENV
         value: production
       - key: PROVIDER
